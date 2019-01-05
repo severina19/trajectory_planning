@@ -249,6 +249,8 @@ int main() {
             int lane = 1;
             //reference velocity to target
             double ref_vel = 0; //mph
+            const double MAX_SPEED = 49.5;
+            const double MAX_ACC = .224;
 
             if (prev_size>0)
             {
@@ -257,6 +259,7 @@ int main() {
             bool too_close = false;
 
             //find ref_v to use
+            /*
             for(int i = 0; i<sensor_fusion.size();i++)
             {
                 float d =sensor_fusion[i][6];
@@ -282,14 +285,8 @@ int main() {
                     }
                 }
             }
+			*/
 
-            if(too_close){
-                ref_vel -= .224;
-            }
-            else if (ref_vel < 49.5)
-            {
-                ref_vel += .224;
-            }
 
             // Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m
             // later we will interpolate these waypoints with a spline and fill it in with more points that control speed
@@ -315,6 +312,7 @@ int main() {
                 ptsx.push_back(car_x);
                 ptsy.push_back(car_y);
             }
+            else
             //use the previous path's end point as starting reference
             {
                 //redefine reference state as previous path end point
@@ -350,7 +348,7 @@ int main() {
                 double shift_y = ptsy[i] - ref_y;
 
                 ptsx[i] = (shift_x*cos(0-ref_yaw)-shift_y*sin(0-ref_yaw));
-                ptsy[i] = (shift_x*sin(0-ref_yaw)-shift_y*cos(0-ref_yaw));
+                ptsy[i] = (shift_x*sin(0-ref_yaw)+shift_y*cos(0-ref_yaw));
             }
 
             // create a spline
@@ -364,7 +362,7 @@ int main() {
           	vector<double> next_y_vals;
 
           	// start with all of the previous path points from last time
-          	for(int i = 0; i<prev_size;i++)
+          	for(int i = 0; i<previous_path_x.size();i++)
             {
           	    next_x_vals.push_back(previous_path_x[i]);
                 next_y_vals.push_back(previous_path_y[i]);
@@ -378,8 +376,15 @@ int main() {
 
           	// Fill up the rest of our path planner after filling it with previous points
           	// here we will always output 50 points
+          	cout<<"prev_size"<<prev_size<<endl;
+          	ref_vel = 50;
           	for(int i = 1; i<= 50-prev_size; i++)
             {
+
+                 //else if (ref_vel < MAX_ACC)
+                 //{
+                 //    ref_vel = MAX_ACC;
+                 //}
           	    double N = (target_dist/(.02*ref_vel/2.24));  //converting from miles per into meter per second
           	    double x_point = x_add_on + (target_x)/N;
           	    double y_point = s(x_point);
@@ -395,18 +400,15 @@ int main() {
           	    x_point += ref_x;
           	    y_point += ref_y;
 
+
+
           	    next_x_vals.push_back(x_point);
-          	    next_y_vals.push_back(y_points);
+          	    next_y_vals.push_back(y_point);
             }
 
-            if (car_s == 0)
-            {
-                Vehicle ego_vehicle = Vehicle::Vehicle(lane_id_from_d(car_d), car_s, car_speed, 0, "CS");
-            }
 
             // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
             // TODO: calculate next s and d
-            vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
             json msgJson;
           	msgJson["next_x"] = next_x_vals;
